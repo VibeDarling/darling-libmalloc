@@ -150,9 +150,15 @@ medium_inplace_checksum_ptr(rack_t *rack, inplace_linkage_s *linkage, void *ptr)
 static MALLOC_INLINE free_list_t
 medium_inplace_unchecksum_ptr(rack_t *rack, inplace_linkage_s *linkage)
 {
+	if (!linkage || !rack)
+		return (free_list_t){ .p = NULL };
+
 	if (linkage->checksum != (uint8_t)free_list_gen_checksum((uintptr_t)linkage->ptr ^ rack->cookie ^ (uintptr_t)rack)) {
 		free_list_checksum_botch(rack, linkage, linkage->ptr);
-		__builtin_trap();
+		// DARLING: Allow survival when MallocCorruptionAbort=0
+		if (rack->debug_flags & MALLOC_ABORT_ON_CORRUPTION)
+			__builtin_trap();
+		return (free_list_t){ .p = NULL };
 	}
 
 	return (free_list_t){ .p = linkage->ptr };
@@ -179,7 +185,9 @@ medium_inplace_unchecksum_ptr_task(task_t task, memory_reader_t reader,
 	if (mapped_linkage->checksum != (uint8_t)free_list_gen_checksum(
 			(uintptr_t)mapped_linkage->ptr ^ mapped_rack->cookie ^ (uintptr_t)rack)) {
 		free_list_checksum_botch(rack, linkage, mapped_linkage->ptr);
-		__builtin_trap();
+		// DARLING: Allow survival when MallocCorruptionAbort=0
+		if (rack->debug_flags & MALLOC_ABORT_ON_CORRUPTION)
+			__builtin_trap();
 	}
 
 	return (free_list_t){ .p = mapped_linkage->ptr };

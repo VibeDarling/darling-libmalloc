@@ -253,6 +253,9 @@ free_list_checksum_ptr(rack_t *rack, void *ptr)
 static MALLOC_INLINE void *
 free_list_unchecksum_ptr(rack_t *rack, inplace_union *ptr)
 {
+	if (!ptr || !rack)
+		return NULL;
+
 	inplace_union p;
 	uintptr_t t = ptr->u;
 
@@ -261,7 +264,10 @@ free_list_unchecksum_ptr(rack_t *rack, inplace_union *ptr)
 
 	if ((t ^ free_list_gen_checksum(p.u ^ rack->cookie)) & (uintptr_t)0xF) {
 		free_list_checksum_botch(rack, ptr, (void *)ptr->u);
-		__builtin_trap();
+		// DARLING: If MallocCorruptionAbort=0 is requested, do not trap; return NULL to allow survival of minor heap inconsistencies.
+		if (rack->debug_flags & MALLOC_ABORT_ON_CORRUPTION)
+			__builtin_trap();
+		return NULL;
 	}
 	return p.p;
 }

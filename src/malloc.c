@@ -1137,16 +1137,13 @@ set_flags_from_environment(void)
 		malloc_tracing_enabled = true;
 	}
 
-#if __LP64__
-/* initialization above forces MALLOC_ABORT_ON_CORRUPTION of 64-bit processes */
-#else
+	// DARLING: Support MallocCorruptionAbort=0 on 64-bit to prevent immediate aborts
 	flag = getenv("MallocCorruptionAbort");
-	if (!restricted && flag && (flag[0] == '0')) { // Set from an environment variable in 32-bit processes
+	if (!restricted && flag && (flag[0] == '0')) {
 		malloc_debug_flags &= ~MALLOC_ABORT_ON_CORRUPTION;
 	} else if (flag) {
 		malloc_debug_flags |= MALLOC_ABORT_ON_CORRUPTION;
 	}
-#endif
 	flag = getenv("MallocCheckHeapStart");
 	if (flag) {
 		malloc_check_start = (unsigned)strtoul(flag, NULL, 0);
