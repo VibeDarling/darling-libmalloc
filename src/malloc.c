@@ -1057,16 +1057,10 @@ set_flags_from_environment(void)
 	const char **p;
 	const char *c;
 
-#if __LP64__
-	malloc_debug_flags = MALLOC_ABORT_ON_CORRUPTION; // Set always on 64-bit processes
-#else
-	int libSystemVersion = NSVersionOfLinkTimeLibrary("System");
-	if ((-1 != libSystemVersion) && ((libSystemVersion >> 16) < 126) /* Lion or greater */) {
-		malloc_debug_flags = 0;
-	} else {
-		malloc_debug_flags = MALLOC_ABORT_ON_CORRUPTION;
-	}
-#endif
+	// DARLING: In an emulation environment, do not abort by default on minor heap
+	// inconsistencies so that ported games and third-party apps (e.g. Enigma) can run.
+	// Only abort if MallocCorruptionAbort=1 is explicitly requested.
+	malloc_debug_flags = 0;
 
 	/*
 	 * Given that all environment variables start with "Malloc" we optimize by scanning quickly
@@ -1137,12 +1131,11 @@ set_flags_from_environment(void)
 		malloc_tracing_enabled = true;
 	}
 
-	// DARLING: Support MallocCorruptionAbort=0 on 64-bit to prevent immediate aborts
 	flag = getenv("MallocCorruptionAbort");
-	if (!restricted && flag && (flag[0] == '0')) {
-		malloc_debug_flags &= ~MALLOC_ABORT_ON_CORRUPTION;
-	} else if (flag) {
+	if (!restricted && flag && (flag[0] == '1' || flag[0] == 'y' || flag[0] == 'Y')) {
 		malloc_debug_flags |= MALLOC_ABORT_ON_CORRUPTION;
+	} else if (!restricted && flag && (flag[0] == '0')) {
+		malloc_debug_flags &= ~MALLOC_ABORT_ON_CORRUPTION;
 	}
 	flag = getenv("MallocCheckHeapStart");
 	if (flag) {
@@ -1999,12 +1992,12 @@ free(void *ptr)
 
 	zone = find_registered_zone(ptr, &size);
 	if (!zone) {
-		int flags = MALLOC_REPORT_DEBUG | MALLOC_REPORT_NOLOG;
-		if ((malloc_debug_flags & (MALLOC_ABORT_ON_CORRUPTION | MALLOC_ABORT_ON_ERROR))) {
-			flags = MALLOC_REPORT_CRASH | MALLOC_REPORT_NOLOG;
+		if (malloc_debug_flags & (MALLOC_ABORT_ON_CORRUPTION | MALLOC_ABORT_ON_ERROR)) {
+			int flags = MALLOC_REPORT_CRASH | MALLOC_REPORT_NOLOG;
+			malloc_report(flags,
+					"*** error for object %p: pointer being freed was not allocated\n", ptr);
 		}
-		malloc_report(flags,
-				"*** error for object %p: pointer being freed was not allocated\n", ptr);
+		return;
 	} else if (zone->version >= 6 && zone->free_definite_size) {
 		malloc_zone_free_definite_size(zone, ptr, size);
 	} else {

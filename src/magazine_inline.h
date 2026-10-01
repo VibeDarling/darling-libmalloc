@@ -191,10 +191,12 @@ SZONE_MAGAZINE_PTR_REINIT_LOCK(magazine_t *mag_ptr)
 static MALLOC_NOINLINE void
 free_list_checksum_botch(rack_t *rack, void *ptr, void *value)
 {
-	malloc_zone_error(rack->debug_flags, true,
-			"Incorrect checksum for freed object %p: "
-			"probably modified after being freed.\n"
-			"Corrupt value: %p\n", ptr, value);
+	if (rack->debug_flags & MALLOC_ABORT_ON_CORRUPTION) {
+		malloc_zone_error(rack->debug_flags, true,
+				"Incorrect checksum for freed object %p: "
+				"probably modified after being freed.\n"
+				"Corrupt value: %p\n", ptr, value);
+	}
 }
 
 static MALLOC_INLINE uintptr_t
