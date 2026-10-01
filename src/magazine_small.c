@@ -638,7 +638,10 @@ small_free_list_find_by_ptr(rack_t *rack, magazine_t *small_mag_ptr, void *ptr, 
 	malloc_zone_error(rack->debug_flags, true,
 			"small_free_list_find_by_ptr: ptr is not free (ptr metadata !SMALL_IS_FREE), "
 			"ptr=%p msize=%d metadata=0x%x\n", ptr, msize, *SMALL_METADATA_FOR_PTR(ptr));
-	__builtin_trap();
+	if (rack->debug_flags & MALLOC_ABORT_ON_CORRUPTION) {
+		__builtin_trap();
+	}
+	return (free_list_t){ .p = ptr };
 }
 
 void
@@ -1362,8 +1365,12 @@ small_free_no_lock(rack_t *rack, magazine_t *small_mag_ptr, mag_index_t mag_inde
 			msize += previous_msize;
 			index -= previous_msize;
 		} else {
-			_os_set_crash_log_message("small free list metadata inconsistency (headers[previous] != previous size)");
-			__builtin_trap();
+			// In Darling emulation mode (MALLOC_ABORT_ON_CORRUPTION not set), do not abort and skip
+			// coalescing with the inconsistent preceding block to prevent corrupting metadata further.
+			if (rack->debug_flags & MALLOC_ABORT_ON_CORRUPTION) {
+				_os_set_crash_log_message("small free list metadata inconsistency (headers[previous] != previous size)");
+				__builtin_trap();
+			}
 		}
 	}
 
