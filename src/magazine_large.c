@@ -628,7 +628,7 @@ free_large(szone_t *szone, void *ptr)
 					// Ok to do this madvise on embedded because we won't call MADV_FREE_REUSABLE on a large
 					// cache block twice without MADV_FREE_REUSE in between.
 
-					if (-1 == madvise((void *)(this_entry.address), this_entry.size, MADV_FREE_REUSABLE)) {
+					if (-1 == madvise((void *)(this_entry.address), this_entry.size, CONFIG_MADVISE_STYLE)) {
 						/* -1 return: VM map entry change makes this unfit for reuse. */
 #if DEBUG_MADVISE
 						malloc_zone_error(szone->debug_flags, false,

@@ -57,10 +57,20 @@
 #define CONFIG_RELAXED_INVARIANT_CHECKS 1
 
 // <rdar://problem/19818071>
+#if defined(__APPLE__)
 #define CONFIG_MADVISE_STYLE MADV_FREE_REUSABLE
+#elif defined(MADV_DONTNEED)
+#define CONFIG_MADVISE_STYLE MADV_DONTNEED
+#else
+#define CONFIG_MADVISE_STYLE MADV_FREE
+#endif
 
 #if MALLOC_TARGET_64BIT
+#if defined(__linux__) || defined(DEPLOYMENT_TARGET_LINUX)
+#define CONFIG_NANOZONE 0
+#else
 #define CONFIG_NANOZONE 1
+#endif
 #define CONFIG_ASLR_INTERNAL 0
 #else // MALLOC_TARGET_64BIT
 #define CONFIG_NANOZONE 0
