@@ -95,12 +95,8 @@ nano_common_init(const char *envp[], const char *apple[], const char *bootargs)
 			_malloc_engaged_nano = NANO_V2;
 		}
 	} else {
-		const char *flag = _simple_getenv(apple, "MallocNanoZone");
-		if (flag && flag[0] == '1') {
-			_malloc_engaged_nano = nanov2_mode == NANO_ENABLED ? NANO_V2 : NANO_V1;
-		}
 		/* Explicit overrides from the environment */
-		flag = _simple_getenv(envp, "MallocNanoZone");
+		const char *flag = _simple_getenv(envp, "MallocNanoZone");
 		if (flag) {
 			if (flag[0] == '1') {
 				_malloc_engaged_nano = nanov2_mode == NANO_ENABLED ? NANO_V2 : NANO_V1;
@@ -113,6 +109,10 @@ nano_common_init(const char *envp[], const char *apple[], const char *bootargs)
 					_malloc_engaged_nano = NANO_V2;
 				}
 			}
+		} else {
+			// On Darling/Linux, default to NANO_NONE (standard scalable magazine allocator)
+			// to avoid address space collisions with Linux mmap layout and nanov2 signature masks.
+			_malloc_engaged_nano = NANO_NONE;
 		}
 	}
 

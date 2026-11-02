@@ -1579,7 +1579,7 @@ tiny_try_realloc_in_place(rack_t *rack, void *ptr, size_t old_size, size_t new_s
 		leftover_msize = last_free_msize - coalesced_msize;
 		if (leftover_msize) {
 			tiny_mag_ptr->mag_last_free_msize -= coalesced_msize;
-			tiny_mag_ptr->mag_last_free += new_size - old_size;
+			tiny_mag_ptr->mag_last_free += TINY_BYTES_FOR_MSIZE(coalesced_msize);
 			// The block in mag_last_free is still marked as header and in-use, so copy that
 			// state to the block that remains. The state for the block that we're going to
 			// use is adjusted by the set_tiny_meta_header_middle() call below.
