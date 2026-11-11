@@ -1960,6 +1960,56 @@ malloc_type_zone_memalign(malloc_zone_t *zone, size_t alignment, size_t size, ma
 	return malloc_zone_memalign(zone, alignment, size);
 }
 
+/* Options for the aligned typed allocation below, as Apple's public header defines them. */
+typedef unsigned long long malloc_zone_malloc_options_t;
+#define MALLOC_ZONE_MALLOC_DEFAULT_ALIGN __SIZEOF_POINTER__
+#define MALLOC_ZONE_MALLOC_OPTION_CLEAR (1ULL << 0)
+#define MALLOC_ZONE_MALLOC_OPTION_CANONICAL_TAG (1ULL << 1)
+
+/* Darling has a single allocator, so the zone argument only picks the entry point; the canonical
+ * tag has no effect without MTE. Invalid alignment or an unknown option bit fails with EINVAL,
+ * matching the upstream rejection of unsupported options. */
+MALLOC_EXPORT void *
+malloc_type_zone_malloc_with_options(malloc_zone_t *zone, size_t alignment, size_t size,
+		malloc_type_id_t type_id, malloc_zone_malloc_options_t options)
+{
+	const malloc_zone_malloc_options_t known =
+			MALLOC_ZONE_MALLOC_OPTION_CLEAR | MALLOC_ZONE_MALLOC_OPTION_CANONICAL_TAG;
+	void *ptr;
+
+	(void)type_id;
+	if (zone == NULL) {
+		zone = malloc_default_zone();
+	}
+	if (alignment != MALLOC_ZONE_MALLOC_DEFAULT_ALIGN
+			&& alignment != 0
+			&& (((alignment & (alignment - 1)) != 0) || ((size & (alignment - 1)) != 0))) {
+		errno = EINVAL;
+		return NULL;
+	}
+	if (options & ~known) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	if (alignment > MALLOC_ZONE_MALLOC_DEFAULT_ALIGN) {
+		ptr = malloc_zone_memalign(zone, alignment, size);
+	} else {
+		ptr = malloc_zone_malloc(zone, size);
+	}
+	if (ptr != NULL && (options & MALLOC_ZONE_MALLOC_OPTION_CLEAR)) {
+		memset(ptr, 0, size);
+	}
+	return ptr;
+}
+
+MALLOC_EXPORT void *
+malloc_type_zone_malloc_with_options_internal(malloc_zone_t *zone, size_t alignment, size_t size,
+		malloc_type_id_t type_id, malloc_zone_malloc_options_t options)
+{
+	return malloc_type_zone_malloc_with_options(zone, alignment, size, type_id, options);
+}
+
 /*********	Generic ANSI callouts	************/
 
 void *
